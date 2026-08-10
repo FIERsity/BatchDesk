@@ -1,5 +1,6 @@
-import { Files, ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import type { Language } from '../types'
+import { BrandMark } from './BrandMark'
 
 interface HeaderProps {
   language: Language
@@ -11,7 +12,7 @@ export function Header({ language, onLanguageChange, t }: HeaderProps) {
   return (
     <header className="app-header">
       <div className="header-brand">
-        <span className="brand-mark" aria-hidden="true"><Files size={20} /></span>
+        <BrandMark className="brand-mark" />
         <span><strong>BatchDesk</strong><small>{t('appTagline')}</small></span>
       </div>
       <div className="header-actions">

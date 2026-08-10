@@ -41,7 +41,7 @@ input[type="checkbox"] { accent-color: var(--primary); width: 15px; height: 15px
 .header-brand > span:last-child { align-items: flex-start; flex-direction: column; gap: 1px; }
 .header-brand strong { font-size: 16px; line-height: 20px; }
 .header-brand small { color: var(--muted); font-size: 11px; line-height: 14px; }
-.brand-mark { width: 32px; height: 32px; display: grid; place-items: center; color: white; background: #253247; border-radius: 6px; }
+.brand-mark { width: 34px; height: 34px; flex: 0 0 auto; }
 .header-actions { gap: 18px; }
 .privacy-status { gap: 6px; color: var(--success); font-size: 12px; font-weight: 650; }
 
