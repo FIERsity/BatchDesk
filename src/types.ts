@@ -3,7 +3,7 @@ export type FileKind = 'docx' | 'xlsx' | 'legacy' | 'other'
 export type Severity = 'info' | 'warning' | 'error'
 export type ProcessorId = 'rename' | 'docx-replace' | 'xlsx-replace'
 export type RenameSortMode = 'path' | 'name' | 'added'
-export type StructuredColumnKind = 'literal' | 'original' | 'sequence' | 'manual' | 'extension'
+export type StructuredColumnKind = 'literal' | 'sequence' | 'manual'
 export type StructuredSequenceFormat = 'arabic' | 'chinese-lower' | 'chinese-upper' | 'roman' | 'alpha-upper' | 'alpha-lower'
 
 export interface RenameColumn {
@@ -13,15 +13,11 @@ export interface RenameColumn {
   enabled: boolean
   value: string
   sequenceFormat: StructuredSequenceFormat
-  sequenceStart: number
-  sequenceStep: number
-  sequencePad: number
 }
 
 export interface StructuredRenameConfig {
   columns: RenameColumn[]
   sortMode: RenameSortMode
-  lockExtension: boolean
   resolveCollisions: boolean
 }
 
