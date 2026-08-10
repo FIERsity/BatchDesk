@@ -16,7 +16,7 @@ export default defineConfig({
         short_name: 'BatchDesk',
         description: 'Private, local-first batch file processing.',
         theme_color: '#ffffff',
-        background_color: '#f7f8fa',
+        background_color: '#f7f7f7',
         display: 'standalone',
         start_url: './',
         icons: [
