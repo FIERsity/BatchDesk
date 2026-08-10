@@ -1,33 +1,13 @@
-import type {
-  InputFile,
-  RenameColumn,
-  RenamePreview,
-  RenameSortMode,
-  StructuredCleaningOptions,
-  StructuredDateFormat,
-  StructuredRenameConfig,
-  StructuredRenamePreview,
-  StructuredSequenceFormat,
-} from '../types'
+import type { InputFile, RenameColumn, RenamePreview, RenameSortMode, StructuredRenameConfig, StructuredRenamePreview, StructuredSequenceFormat } from '../types'
 import { auditFileName, normalizedPathKey, sanitizeOutputPath, splitFileName } from './files'
 
-export const defaultCleaning: StructuredCleaningOptions = {
-  trim: true,
-  collapseWhitespace: true,
-  normalizeUnicode: true,
-  unifySeparators: false,
-  separator: '-',
-  removeCopySuffix: false,
-  case: 'keep',
-}
+export const PRIMARY_ORIGINAL_COLUMN_ID = 'original-title'
 
 export function createRenameColumn(kind: RenameColumn['kind']): RenameColumn {
   const labels: Record<RenameColumn['kind'], string> = {
-    literal: '固定文字',
+    literal: '分隔符 / 固定文字',
     original: '原始标题',
-    cleaned: '清洗标题',
     sequence: '序号',
-    date: '日期',
     manual: '手动输入',
     extension: '扩展名',
   }
@@ -36,34 +16,25 @@ export function createRenameColumn(kind: RenameColumn['kind']): RenameColumn {
     kind,
     label: labels[kind],
     enabled: true,
-    value: kind === 'literal' ? '-' : '',
+    value: '',
     sequenceFormat: 'arabic',
     sequenceStart: 1,
     sequenceStep: 1,
-    sequencePad: 2,
-    dateSource: 'modified',
-    dateFormat: 'YYYY-MM-DD',
-    cleaning: { ...defaultCleaning },
+    sequencePad: 1,
   }
 }
 
-function titleCase(value: string): string {
-  return value.replace(/(^|[\s_-])([\p{L}\p{N}])/gu, (_, prefix: string, letter: string) => `${prefix}${letter.toLocaleUpperCase()}`)
+export function createPrimaryOriginalColumn(): RenameColumn {
+  return { ...createRenameColumn('original'), id: PRIMARY_ORIGINAL_COLUMN_ID, label: '原始标题' }
 }
 
-function cleanTitle(value: string, options: StructuredCleaningOptions): string {
-  let result = value
-  if (options.normalizeUnicode) result = result.normalize('NFKC')
-  if (options.removeCopySuffix) {
-    result = result.replace(/(?:[\s_-]+(?:copy|副本)(?:[\s_-]*\d+)?|\s*\(\s*(?:copy|副本|\d+)\s*\))$/iu, '')
-  }
-  if (options.collapseWhitespace) result = result.replace(/[\s\u3000]+/g, ' ')
-  if (options.unifySeparators) result = result.replace(/[\s_-]+/g, options.separator)
-  if (options.trim) result = result.trim()
-  if (options.case === 'lower') result = result.toLocaleLowerCase()
-  if (options.case === 'upper') result = result.toLocaleUpperCase()
-  if (options.case === 'title') result = titleCase(result)
-  return result
+export function formatStructuredSequence(value: number, format: StructuredSequenceFormat, pad = 1): string {
+  if (format === 'chinese-lower') return chineseNumber(value, lowerChineseDigits)
+  if (format === 'chinese-upper') return chineseNumber(value, upperChineseDigits)
+  if (format === 'roman') return romanNumber(value)
+  if (format === 'alpha-upper') return alphaNumber(value)
+  if (format === 'alpha-lower') return alphaNumber(value).toLowerCase()
+  return String(Math.trunc(value)).padStart(Math.max(1, Math.min(8, Math.trunc(pad))), '0')
 }
 
 const lowerChineseDigits = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九']
@@ -87,7 +58,6 @@ function chineseNumber(value: number, digits: string[]): string {
     }
     if (zeroPending) result += digits[0]
     zeroPending = false
-    // 十、百、千 use the same characters in both lower and upper Chinese styles.
     if (digit === 1 && position === 1 && chars.length <= 2 && digits === lowerChineseDigits) result += units[position]
     else result += `${digits[digit]}${units[position]}`
   })
@@ -121,25 +91,6 @@ function alphaNumber(value: number): string {
   return result
 }
 
-export function formatStructuredSequence(value: number, format: StructuredSequenceFormat, pad = 1): string {
-  if (format === 'chinese-lower') return chineseNumber(value, lowerChineseDigits)
-  if (format === 'chinese-upper') return chineseNumber(value, upperChineseDigits)
-  if (format === 'roman') return romanNumber(value)
-  if (format === 'alpha-upper') return alphaNumber(value)
-  if (format === 'alpha-lower') return alphaNumber(value).toLowerCase()
-  return String(Math.trunc(value)).padStart(Math.max(1, Math.min(8, Math.trunc(pad))), '0')
-}
-
-function formatDate(timestamp: number, format: StructuredDateFormat): string {
-  const date = new Date(timestamp)
-  const year = String(date.getFullYear())
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  if (format === 'YYYYMMDD') return `${year}${month}${day}`
-  if (format === 'YYYY年MM月DD日') return `${year}年${month}月${day}日`
-  return `${year}-${month}-${day}`
-}
-
 function sortFiles(files: InputFile[], sortMode: RenameSortMode): InputFile[] {
   return [...files].sort((a, b) => {
     if (sortMode === 'added') return files.indexOf(a) - files.indexOf(b)
@@ -155,21 +106,15 @@ function addCollisionSuffix(name: string, number: number): string {
   return `${stem}-${number}${extension}`
 }
 
-function cellValue(file: InputFile, column: RenameColumn, index: number, overrides: Record<string, string> | undefined, extensionEditable: boolean): string {
+function cellValue(file: InputFile, column: RenameColumn, index: number, originalTitle: string, overrides: Record<string, string> | undefined, extensionEditable: boolean): string {
   const override = overrides?.[column.id]
   if ((column.kind === 'literal' || column.kind === 'manual' || column.kind === 'extension' && extensionEditable) && override !== undefined) return override
-  const { stem, extension } = splitFileName(file.name)
   if (column.kind === 'literal' || column.kind === 'manual') return column.value
-  if (column.kind === 'original') return stem
-  if (column.kind === 'cleaned') return cleanTitle(stem, column.cleaning)
-  if (column.kind === 'extension') return extension.replace(/^\./, '')
-  if (column.kind === 'sequence') {
-    const start = Number.isFinite(column.sequenceStart) ? column.sequenceStart : 1
-    const step = Number.isFinite(column.sequenceStep) ? column.sequenceStep : 1
-    return formatStructuredSequence(start + index * step, column.sequenceFormat, column.sequencePad)
-  }
-  const timestamp = column.dateSource === 'today' ? Date.now() : file.lastModified
-  return formatDate(timestamp, column.dateFormat)
+  if (column.kind === 'original') return override ?? originalTitle
+  if (column.kind === 'extension') return splitFileName(file.name).extension.replace(/^\./, '')
+  const start = Number.isFinite(column.sequenceStart) ? column.sequenceStart : 1
+  const step = Number.isFinite(column.sequenceStep) ? column.sequenceStep : 1
+  return formatStructuredSequence(start + index * step, column.sequenceFormat, column.sequencePad)
 }
 
 function extensionFromCell(value: string): string {
@@ -183,17 +128,19 @@ export function buildStructuredRenamePreview(
   overrides: Record<string, Record<string, string>> = {},
 ): StructuredRenamePreview[] {
   const allColumns = config.columns
-  const columns = allColumns.filter((column) => column.enabled)
+  const enabledColumns = allColumns.filter((column) => column.enabled)
+  const primaryOriginal = allColumns.find((column) => column.id === PRIMARY_ORIGINAL_COLUMN_ID) ?? allColumns.find((column) => column.kind === 'original')
   const sorted = sortFiles(files, config.sortMode)
   const occupied = new Set<string>()
   return sorted.map((file, index) => {
+    const originalStem = splitFileName(file.name).stem
+    const originalOverride = primaryOriginal ? overrides[file.id]?.[primaryOriginal.id] : undefined
+    const originalTitle = originalOverride ?? originalStem
+    const cells = Object.fromEntries(allColumns.map((column) => [column.id, cellValue(file, column, index, originalTitle, overrides[file.id], !config.lockExtension)]))
+    const extensionColumn = enabledColumns.find((column) => column.kind === 'extension')
+    const stem = enabledColumns.filter((column) => column.kind !== 'extension').map((column) => cells[column.id]).join('')
     const originalExtension = splitFileName(file.name).extension
-    const cells = Object.fromEntries(allColumns.map((column) => [column.id, cellValue(file, column, index, overrides[file.id], !config.lockExtension)]))
-    const extensionColumn = columns.find((column) => column.kind === 'extension')
-    const stem = columns.filter((column) => column.kind !== 'extension').map((column) => cells[column.id]).join('')
-    const extension = config.lockExtension
-      ? originalExtension
-      : extensionColumn ? extensionFromCell(cells[extensionColumn.id]) : originalExtension
+    const extension = config.lockExtension ? originalExtension : extensionColumn ? extensionFromCell(cells[extensionColumn.id]) : originalExtension
     let after = `${stem}${extension}`
     let error: string | undefined
     if (!stem.trim()) error = 'invalidRename'
