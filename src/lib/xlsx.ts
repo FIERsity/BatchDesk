@@ -1,8 +1,13 @@
 import JSZip from 'jszip'
 import type { BatchProcessor, FilePreview, OutputArtifact, ReplacementMatch, XlsxReplaceConfig } from '../types'
-import { applyTextRanges, collectText, contextSnippet, elementsByLocalName, findTextRanges, parseXml, serializeXml, visibleTextNodes, type XmlDocument, type XmlElement, type XmlNode } from './ooxml'
+import { throwIfAborted } from './abort'
+import { applyTextRanges, collectText, contextSnippet, elementsByLocalName, ensurePreservedSpaces, findTextRanges, parseXml, serializeXml, visibleTextNodes, type XmlDocument, type XmlElement, type XmlNode } from './ooxml'
 
 interface SheetInfo { name: string; path: string }
+
+function hasDigitalSignature(zip: JSZip): boolean {
+  return Object.keys(zip.files).some((path) => path.toLocaleLowerCase().startsWith('_xmlsignatures/'))
+}
 
 async function loadXlsx(file: File): Promise<JSZip> {
   try {
@@ -40,13 +45,13 @@ function cellText(cell: XmlElement, sharedStrings: XmlElement[]): { nodes: XmlNo
     const value = elementsByLocalName(cell, 'v')[0]?.textContent ?? ''
     const index = Number(value)
     if (!Number.isInteger(index) || !sharedStrings[index]) return undefined
-    const nodes = visibleTextNodes(sharedStrings[index], new Set())
+    const nodes = visibleTextNodes(sharedStrings[index], new Set(['rPh']))
     return { nodes, text: collectText(nodes).text, sharedIndex: index }
   }
   if (type === 'inlineStr') {
     const inline = elementsByLocalName(cell, 'is')[0]
     if (!inline) return undefined
-    const nodes = visibleTextNodes(inline, new Set())
+    const nodes = visibleTextNodes(inline, new Set(['rPh']))
     return { nodes, text: collectText(nodes).text }
   }
   return undefined
@@ -92,9 +97,11 @@ export const xlsxProcessor: BatchProcessor<XlsxReplaceConfig> = {
   id: 'xlsx-replace',
   supports: (file) => file.kind === 'xlsx',
   async scan(file, config, signal): Promise<FilePreview> {
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    throwIfAborted(signal)
     try {
       const zip = await loadXlsx(file.file)
+      throwIfAborted(signal)
+      if (hasDigitalSignature(zip)) return { fileId: file.id, fileName: file.name, status: 'skipped', matches: [], warnings: ['digitalSignature'] }
       const sheets = await workbookSheets(zip)
       const sharedFile = zip.file('xl/sharedStrings.xml')
       const sharedDocument = sharedFile ? parseXml(await sharedFile.async('string')) : undefined
@@ -102,7 +109,7 @@ export const xlsxProcessor: BatchProcessor<XlsxReplaceConfig> = {
       const matches: ReplacementMatch[] = []
       let skippedFormulas = 0
       for (const sheet of selectedSheets(sheets, config)) {
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+        throwIfAborted(signal)
         const document = parseXml(await zip.file(sheet.path)!.async('string'))
         const result = scanSheet(file.id, sheet, document, sharedStrings, config)
         matches.push(...result.matches)
@@ -125,6 +132,8 @@ export const xlsxProcessor: BatchProcessor<XlsxReplaceConfig> = {
     if (preview.status !== 'ready') throw new Error(preview.warnings[0] ?? 'fileNotReady')
     const selected = new Set(preview.matches.filter((match) => match.selected).map((match) => match.id))
     const zip = await loadXlsx(file.file)
+    throwIfAborted(signal)
+    if (hasDigitalSignature(zip)) throw new Error('digitalSignature')
     const sheets = await workbookSheets(zip)
     const sharedFile = zip.file('xl/sharedStrings.xml')
     const sharedDocument = sharedFile ? parseXml(await sharedFile.async('string')) : undefined
@@ -134,7 +143,7 @@ export const xlsxProcessor: BatchProcessor<XlsxReplaceConfig> = {
     let appliedCount = 0
 
     for (const sheet of selectedSheets(sheets, config)) {
-      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      throwIfAborted(signal)
       const document = parseXml(await zip.file(sheet.path)!.async('string'))
       for (const cell of elementsByLocalName(document, 'c')) {
         const reference = cell.getAttribute('r') ?? '?'
@@ -147,10 +156,11 @@ export const xlsxProcessor: BatchProcessor<XlsxReplaceConfig> = {
 
         if (content.sharedIndex !== undefined && sharedRoot && sharedDocument) {
           const clone = sharedStrings[content.sharedIndex].cloneNode(true) as XmlElement
-          const nodes = visibleTextNodes(clone, new Set())
+          const nodes = visibleTextNodes(clone, new Set(['rPh']))
           const spans = collectText(nodes).spans
           const count = applyTextRanges(spans, ranges, config.replacement, selected, (range) => xlsxMatchId(file.id, sheet.name, reference, range.start, range.end))
           if (count) {
+            ensurePreservedSpaces(nodes)
             sharedRoot.appendChild(clone)
             const newIndex = sharedStrings.length + appendedSharedStrings
             appendedSharedStrings += 1
@@ -159,7 +169,9 @@ export const xlsxProcessor: BatchProcessor<XlsxReplaceConfig> = {
           }
         } else {
           const spans = collectText(content.nodes).spans
-          appliedCount += applyTextRanges(spans, ranges, config.replacement, selected, (range) => xlsxMatchId(file.id, sheet.name, reference, range.start, range.end))
+          const count = applyTextRanges(spans, ranges, config.replacement, selected, (range) => xlsxMatchId(file.id, sheet.name, reference, range.start, range.end))
+          if (count) ensurePreservedSpaces(content.nodes)
+          appliedCount += count
         }
       }
       zip.file(sheet.path, serializeXml(document))
@@ -170,7 +182,9 @@ export const xlsxProcessor: BatchProcessor<XlsxReplaceConfig> = {
       sharedRoot.setAttribute('uniqueCount', String(originalUnique + appendedSharedStrings))
       zip.file('xl/sharedStrings.xml', serializeXml(sharedDocument))
     }
-    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+    throwIfAborted(signal)
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } }, () => throwIfAborted(signal))
+    throwIfAborted(signal)
     return { fileId: file.id, fileName: file.name, relativePath: file.relativePath, blob, appliedCount, warnings: preview.warnings }
   },
 }

@@ -42,7 +42,7 @@ export function ReplaceWorkspace({ operation, files, busy, onBack, onScan, onRun
 
   return (
     <main className="workspace task-workspace">
-      <div className="task-heading"><button type="button" className="icon-btn" onClick={onBack} title={t('backInbox')}><ArrowLeft size={18} /></button><div><span>{t('inbox')} /</span><h1>{operation === 'docx-replace' ? t('wordReplace') : t('excelReplace')}</h1></div><div className="heading-meta">{t('selectedCount', { count: files.length })}</div></div>
+      <div className="task-heading"><button type="button" className="icon-btn" onClick={onBack} title={t('backInbox')} aria-label={t('backInbox')}><ArrowLeft size={18} /></button><div><span>{t('inbox')} /</span><h1>{operation === 'docx-replace' ? t('wordReplace') : t('excelReplace')}</h1></div><div className="heading-meta">{t('selectedCount', { count: files.length })}</div></div>
       <div className="task-layout">
         <section className="preview-pane">
           <div className="section-heading"><div><h2>{t('matches')}</h2><p>{t('selectedMatches', { count: selectedMatches })}</p></div>{matches.length > 0 && <button type="button" className="btn ghost" onClick={toggleAll}><SquareCheckBig size={15} />{t('selectAll')}</button>}</div>

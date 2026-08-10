@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import type { BatchReport, FileOperationResult, OutputArtifact, ProcessorId } from '../types'
+import { throwIfAborted } from './abort'
 import { sanitizeOutputPath } from './files'
 
 function csvCell(value: string | number): string {
@@ -37,14 +38,19 @@ export function reportToCsv(report: BatchReport): string {
   return `\uFEFF${[header.join(','), ...rows].join('\n')}`
 }
 
-export async function packageArtifacts(artifacts: OutputArtifact[], report: BatchReport): Promise<{ bundle: Blob; reportJson: Blob; reportCsv: Blob }> {
+export async function packageArtifacts(artifacts: OutputArtifact[], report: BatchReport, signal?: AbortSignal): Promise<{ bundle: Blob; reportJson: Blob; reportCsv: Blob }> {
   const zip = new JSZip()
-  for (const artifact of artifacts) zip.file(sanitizeOutputPath(artifact.relativePath), artifact.blob)
+  for (const artifact of artifacts) {
+    throwIfAborted(signal)
+    zip.file(sanitizeOutputPath(artifact.relativePath), artifact.blob)
+  }
   const json = JSON.stringify(report, null, 2)
   const csv = reportToCsv(report)
   zip.file('batchdesk-report.json', json)
   zip.file('batchdesk-report.csv', csv)
-  const bundle = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
+  throwIfAborted(signal)
+  const bundle = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } }, () => throwIfAborted(signal))
+  throwIfAborted(signal)
   return {
     bundle,
     reportJson: new Blob([json], { type: 'application/json' }),

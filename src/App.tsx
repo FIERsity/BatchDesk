@@ -128,14 +128,24 @@ export default function App() {
   const saveFolder = async () => {
     if (!result) return
     try {
-      const supported = await writeArtifactsToDirectory(result.artifacts)
-      if (!supported) downloadBlob(result.bundle, `batchdesk-${result.report.createdAt.slice(0, 10)}.zip`)
+      const stamp = result.report.createdAt.replace(/[:.]/g, '-').slice(0, 19)
+      const outputFolder = await writeArtifactsToDirectory([
+        ...result.artifacts,
+        { relativePath: 'batchdesk-report.csv', blob: result.reportCsv },
+        { relativePath: 'batchdesk-report.json', blob: result.reportJson },
+      ], `BatchDesk-${stamp}`)
+      if (!outputFolder) downloadBlob(result.bundle, `batchdesk-${result.report.createdAt.slice(0, 10)}.zip`)
+      else setNotice(t('savedToFolder', { folder: outputFolder }))
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) setNotice(error instanceof Error ? error.message : t('processingFailed'))
     }
   }
 
-  const cancelJob = () => { if (activeJob) clientRef.current?.cancel(activeJob) }
+  const cancelJob = () => {
+    if (!activeJob) return
+    clientRef.current?.cancel(activeJob)
+    setNotice(t('jobCancelled'))
+  }
   const backToInbox = () => { setWorkspace('inbox'); setResult(null) }
 
   return <div className="app-shell">

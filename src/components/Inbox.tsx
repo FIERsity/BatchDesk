@@ -74,7 +74,7 @@ export function Inbox({ files, selected, busy, onAdd, onSelectionChange, onRemov
 
       <section className="file-surface">
         <div className="toolbar">
-          <label className="search-field"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchFiles')} /></label>
+          <label className="search-field"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('searchFiles')} aria-label={t('searchFiles')} /></label>
           <select value={kind} onChange={(event) => setKind(event.target.value as FileKind | 'all')} aria-label={t('allTypes')}>
             <option value="all">{t('allTypes')}</option><option value="docx">DOCX</option><option value="xlsx">XLSX</option><option value="legacy">DOC / XLS</option><option value="other">{t('unsupported')}</option>
           </select>
@@ -95,7 +95,7 @@ export function Inbox({ files, selected, busy, onAdd, onSelectionChange, onRemov
                   <td className="check-cell"><input type="checkbox" checked={selected.has(file.id)} onChange={() => { const next = new Set(selected); if (next.has(file.id)) next.delete(file.id); else next.add(file.id); onSelectionChange(next) }} aria-label={`${t('name')}: ${file.name}`} /></td>
                   <td><div className="file-name"><span className={`file-badge ${file.kind}`}>{file.kind === 'other' ? 'FILE' : file.kind.toUpperCase()}</span><span title={file.name}>{file.name}</span></div></td>
                   <td className="muted truncate" title={file.directory}>{file.directory || '—'}</td><td>{file.extension || '—'}</td><td className="numeric">{formatBytes(file.size)}</td>
-                  <td><span className={`status-pill ${highest}`} title={file.issues.map((issue) => t(issue.message)).join('\n')}>{highest === 'ready' ? t('healthy') : highest === 'warning' ? t('warning') : t('blocked')} {file.issues.length ? `(${file.issues.length})` : ''}</span></td>
+                  <td><span className={`status-pill ${highest}`} title={file.issues.map((issue) => t(issue.message)).join('\n')} aria-label={[highest === 'ready' ? t('healthy') : highest === 'warning' ? t('warning') : t('blocked'), ...file.issues.map((issue) => t(issue.message))].join(': ')} tabIndex={file.issues.length ? 0 : undefined}>{highest === 'ready' ? t('healthy') : highest === 'warning' ? t('warning') : t('blocked')} {file.issues.length ? `(${file.issues.length})` : ''}</span></td>
                   <td className="action-cell"><button type="button" className="icon-btn subtle" onClick={() => onRemove(file.id)} title={t('remove')} aria-label={`${t('remove')} ${file.name}`}><X size={15} /></button></td>
                 </tr>
               })}</tbody>

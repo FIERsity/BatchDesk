@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { docxProcessor, inspectDocx } from '../lib/docx'
+import { isAbortError, throwIfAborted } from '../lib/abort'
 import { inspectXlsx, xlsxProcessor } from '../lib/xlsx'
 import { createBatchReport, packageArtifacts } from '../lib/report'
 import type { FileOperationResult, InputFile, OutputArtifact } from '../types'
@@ -28,11 +29,12 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, task: (
 
 async function auditFiles(jobId: string, files: InputFile[], signal: AbortSignal) {
   const invalid: string[] = []
-  await mapWithConcurrency(files, 2, async (file, index) => {
-    if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
+  let completed = 0
+  await mapWithConcurrency(files, 2, async (file) => {
+    throwIfAborted(signal)
     const result = file.kind === 'docx' ? await inspectDocx(file.file) : file.kind === 'xlsx' ? await inspectXlsx(file.file) : 'valid'
     if (result === 'invalid') invalid.push(file.id)
-    send({ type: 'JOB_PROGRESS', jobId, completed: index + 1, total: files.length, phase: 'audit', currentFile: file.name })
+    send({ type: 'JOB_PROGRESS', jobId, completed: ++completed, total: files.length, phase: 'audit', currentFile: file.name })
   })
   send({ type: 'AUDIT_RESULT', jobId, invalidFileIds: invalid })
 }
@@ -40,11 +42,12 @@ async function auditFiles(jobId: string, files: InputFile[], signal: AbortSignal
 async function previewOperation(request: Extract<WorkerRequest, { type: 'PREVIEW_OPERATION' }>, signal: AbortSignal) {
   const { jobId, files, operation, config } = request
   const applicable = files.filter((file) => operation === 'docx-replace' ? docxProcessor.supports(file) : xlsxProcessor.supports(file))
-  const previews = await mapWithConcurrency(applicable, 2, async (file, index) => {
+  let completed = 0
+  const previews = await mapWithConcurrency(applicable, 2, async (file) => {
     const preview = operation === 'docx-replace'
       ? await docxProcessor.scan(file, config as Parameters<typeof docxProcessor.scan>[1], signal)
       : await xlsxProcessor.scan(file, config as Parameters<typeof xlsxProcessor.scan>[1], signal)
-    send({ type: 'JOB_PROGRESS', jobId, completed: index + 1, total: applicable.length, phase: 'preview', currentFile: file.name })
+    send({ type: 'JOB_PROGRESS', jobId, completed: ++completed, total: applicable.length, phase: 'preview', currentFile: file.name })
     return preview
   })
   send({ type: 'PREVIEW_RESULT', jobId, previews })
@@ -76,11 +79,12 @@ async function runReplacement(jobId: string, files: InputFile[], payload: Exclud
   const previews = new Map((payload.previews ?? []).map((preview) => [preview.fileId, preview]))
   const applicable = files.filter((file) => payload.operation === 'docx-replace' ? docxProcessor.supports(file) : xlsxProcessor.supports(file))
   const artifacts: OutputArtifact[] = []
-  const results = await mapWithConcurrency(applicable, 2, async (file, index) => {
+  let completed = 0
+  const results = await mapWithConcurrency(applicable, 2, async (file) => {
     const preview = previews.get(file.id)
     if (!preview || preview.status !== 'ready') {
       const result = resultFor(file, file.relativePath, 'skipped', preview?.matches.length ?? 0, 0, preview?.warnings ?? ['fileNotReady'])
-      send({ type: 'JOB_PROGRESS', jobId, completed: index + 1, total: applicable.length, phase: 'process', currentFile: file.name })
+      send({ type: 'JOB_PROGRESS', jobId, completed: ++completed, total: applicable.length, phase: 'process', currentFile: file.name })
       return result
     }
     try {
@@ -90,9 +94,10 @@ async function runReplacement(jobId: string, files: InputFile[], payload: Exclud
       artifacts.push(artifact)
       return resultFor(file, artifact.relativePath, 'success', preview.matches.length, artifact.appliedCount, artifact.warnings)
     } catch (error) {
+      if (isAbortError(error)) throw error
       return resultFor(file, file.relativePath, 'failed', preview.matches.length, 0, [], error instanceof Error ? error.message : 'processingFailed')
     } finally {
-      send({ type: 'JOB_PROGRESS', jobId, completed: index + 1, total: applicable.length, phase: 'process', currentFile: file.name })
+      if (preview?.status === 'ready') send({ type: 'JOB_PROGRESS', jobId, completed: ++completed, total: applicable.length, phase: 'process', currentFile: file.name })
     }
   })
   return { artifacts, results }
@@ -102,9 +107,12 @@ async function runOperation(request: Extract<WorkerRequest, { type: 'RUN_OPERATI
   const output = request.payload.operation === 'rename'
     ? await runRename(request.jobId, request.files, request.payload, signal)
     : await runReplacement(request.jobId, request.files, request.payload, signal)
-  send({ type: 'JOB_PROGRESS', jobId: request.jobId, completed: output.artifacts.length, total: output.artifacts.length, phase: 'package' })
+  throwIfAborted(signal)
+  send({ type: 'JOB_PROGRESS', jobId: request.jobId, completed: 0, total: 1, phase: 'package' })
   const report = createBatchReport(request.jobId, request.payload.operation, output.results)
-  const packaged = await packageArtifacts(output.artifacts, report)
+  const packaged = await packageArtifacts(output.artifacts, report, signal)
+  throwIfAborted(signal)
+  send({ type: 'JOB_PROGRESS', jobId: request.jobId, completed: 1, total: 1, phase: 'package' })
   send({ type: 'RUN_RESULT', jobId: request.jobId, artifacts: output.artifacts, report, ...packaged })
 }
 
@@ -123,7 +131,7 @@ scope.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
       ? previewOperation(request, controller.signal)
       : runOperation(request, controller.signal)
   void work.catch((error) => {
-    if (error instanceof DOMException && error.name === 'AbortError') send({ type: 'JOB_CANCELLED', jobId: request.jobId })
+    if (isAbortError(error)) send({ type: 'JOB_CANCELLED', jobId: request.jobId })
     else send({ type: 'JOB_ERROR', jobId: request.jobId, error: error instanceof Error ? error.message : 'jobFailed' })
   }).finally(() => controllers.delete(request.jobId))
 })

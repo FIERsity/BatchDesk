@@ -22,6 +22,9 @@ const zh: Record<string, string> = {
   largeBatch: '本批文件较大，处理时间和内存占用可能增加。', unsupported: '仅支持改名', legacy: '旧版 Office 格式，仅支持改名', close: '关闭', enabled: '启用', deleteRule: '删除规则',
   report: '报告', progressOf: '{done} / {total}', noSelectedFiles: '请先选择文件', unsupportedSelection: '当前选择中没有可处理的文件', runNeedsMatches: '没有选中的匹配项',
   workerLoadFailed: '后台处理模块加载失败，请刷新页面重试', workerMessageFailed: '后台处理消息无法读取',
+  digitalSignature: '文件包含数字签名；为避免产生失效签名，已跳过处理', outputFolderConflict: '无法创建安全的输出文件夹', savedToFolder: '副本和报告已保存到 {folder}，未覆盖任何已有文件', jobCancelled: '任务已取消，没有继续生成结果',
+  completeWithIssues: '处理完成，但有项目未成功', operationFailed: '处理未成功',
+  moveUp: '上移规则', moveDown: '下移规则',
 }
 
 const en: Record<string, string> = {
@@ -46,6 +49,9 @@ const en: Record<string, string> = {
   largeBatch: 'This batch is large and may use more time and memory.', unsupported: 'Rename only', legacy: 'Legacy Office format; rename only', close: 'Close', enabled: 'Enabled', deleteRule: 'Delete rule',
   report: 'Report', progressOf: '{done} / {total}', noSelectedFiles: 'Select files first', unsupportedSelection: 'No supported files are selected', runNeedsMatches: 'No matches are selected',
   workerLoadFailed: 'The background processor failed to load. Refresh and try again.', workerMessageFailed: 'The background processor could not read the request.',
+  digitalSignature: 'This file is digitally signed and was skipped to avoid invalidating its signature.', outputFolderConflict: 'A safe output folder could not be created.', savedToFolder: 'Copies and reports were saved to {folder}; no existing files were overwritten.', jobCancelled: 'The job was cancelled and no further results were created.',
+  completeWithIssues: 'Complete with issues', operationFailed: 'Processing did not succeed',
+  moveUp: 'Move rule up', moveDown: 'Move rule down',
 }
 
 const dictionaries = { zh, en }

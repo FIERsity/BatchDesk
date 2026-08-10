@@ -36,7 +36,7 @@ export function elementsByLocalName(root: XmlNode, localName: string): XmlElemen
   return result
 }
 
-export function visibleTextNodes(container: XmlNode, excludedAncestors = new Set(['del', 'instrText', 'commentRangeStart', 'commentRangeEnd'])): XmlNode[] {
+export function visibleTextNodes(container: XmlNode, excludedAncestors = new Set(['del', 'moveFrom', 'moveTo', 'instrText', 'commentRangeStart', 'commentRangeEnd'])): XmlNode[] {
   return elementsByLocalName(container, 't').filter((element) => {
     let parent: XmlNode | null = element.parentNode
     while (parent && parent !== container) {
@@ -45,6 +45,14 @@ export function visibleTextNodes(container: XmlNode, excludedAncestors = new Set
     }
     return true
   })
+}
+
+export function ensurePreservedSpaces(nodes: XmlNode[]): void {
+  for (const node of nodes) {
+    if (/^\s|\s$/.test(node.textContent ?? '')) {
+      ;(node as XmlElement).setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve')
+    }
+  }
 }
 
 export function collectText(nodes: XmlNode[]): { text: string; spans: TextSpan[] } {

@@ -1,7 +1,7 @@
 {
   "name": "batchdesk",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local-first batch file workspace for renaming and Office text replacement.",
   "license": "MIT",
   "homepage": "https://FIERsity.github.io/BatchDesk/",

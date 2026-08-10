@@ -29,6 +29,25 @@ describe('DOCX processor', () => {
     expect(preview.warnings).toContain('trackedChanges')
   })
 
+  it('blocks revision markers in unselected story parts and formatting changes', async () => {
+    const bodyOnly = { ...config, scopes: { body: true, headers: false, footnotes: false } }
+    const file = await makeDocx(wordDocument('<w:p><w:r><w:rPr><w:rPrChange/></w:rPr><w:t>Hello World</w:t></w:r></w:p>'), {
+      'word/header1.xml': '<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:moveFrom><w:r><w:t>Old</w:t></w:r></w:moveFrom></w:p></w:hdr>',
+    })
+    const preview = await docxProcessor.scan(createInputFiles([file])[0], bodyOnly)
+    expect(preview.status).toBe('skipped')
+    expect(preview.warnings).toContain('trackedChanges')
+  })
+
+  it('does not modify digitally signed documents', async () => {
+    const file = await makeDocx(wordDocument('<w:p><w:r><w:t>Hello World</w:t></w:r></w:p>'), {
+      '_xmlsignatures/sig1.xml': '<Signature/>',
+    })
+    const preview = await docxProcessor.scan(createInputFiles([file])[0], config)
+    expect(preview.status).toBe('skipped')
+    expect(preview.warnings).toContain('digitalSignature')
+  })
+
   it('scans 60 regular documents without losing matches', async () => {
     const file = await makeDocx(wordDocument('<w:p><w:r><w:t>Hello World</w:t></w:r></w:p>'))
     const inputs = createInputFiles(Array.from({ length: 60 }, (_, index) => new File([file], `sample-${index}.docx`, { type: file.type })))
