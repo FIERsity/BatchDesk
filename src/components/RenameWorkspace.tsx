@@ -12,8 +12,6 @@ interface RenameWorkspaceProps {
   t: (key: string, variables?: Record<string, string | number>) => string
 }
 
-type PreviewFilter = 'all' | 'changed' | 'issues'
-
 const ruleId = () => `rule-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
 function newRule(type: RenameRule['type']): RenameRule {
@@ -32,14 +30,12 @@ export function RenameWorkspace({ files, busy, onBack, onRun, t }: RenameWorkspa
   const [lockExtension, setLockExtension] = useState(true)
   const [resolveCollisions, setResolveCollisions] = useState(true)
   const [sortMode, setSortMode] = useState<RenameSortMode>('path')
-  const [previewFilter, setPreviewFilter] = useState<PreviewFilter>('all')
   const [presetMessage, setPresetMessage] = useState('')
   const errors = rules.map(validateRenameRule).filter(Boolean)
   const previews = useMemo(() => buildRenamePreview(files, rules, lockExtension, resolveCollisions, sortMode), [files, lockExtension, resolveCollisions, rules, sortMode])
   const changedCount = previews.filter((preview) => preview.changed && !preview.error && !preview.collision).length
   const issueCount = previews.filter((preview) => preview.error || preview.collision).length
   const extensionChangeCount = previews.filter((preview) => preview.extensionChanged && !preview.error && !preview.collision).length
-  const visiblePreviews = previews.filter((preview) => previewFilter === 'all' || previewFilter === 'changed' && preview.changed || previewFilter === 'issues' && (preview.error || preview.collision))
   const invalid = errors.length > 0 || issueCount > 0
   const canRun = !busy && !invalid && changedCount > 0 && files.length > 0 && rules.some((rule) => rule.enabled)
 
@@ -84,22 +80,13 @@ export function RenameWorkspace({ files, busy, onBack, onRun, t }: RenameWorkspa
         <section className="preview-pane">
           <div className="section-heading preview-heading">
             <div><h2>{t('preview')}</h2><p>{t('renameSummary', { changed: changedCount, total: previews.length, issues: issueCount })}</p></div>
-            <div className="preview-tools">
-              <select value={sortMode} onChange={(event) => setSortMode(event.target.value as RenameSortMode)} aria-label={t('sortBy')}>
-                <option value="path">{t('sortPath')}</option><option value="name">{t('sortName')}</option><option value="added">{t('sortAdded')}</option>
-              </select>
-              <div className="segmented compact" role="group" aria-label={t('previewFilter')}>
-                <button type="button" className={previewFilter === 'all' ? 'active' : ''} aria-pressed={previewFilter === 'all'} onClick={() => setPreviewFilter('all')}>{t('allItems')}</button>
-                <button type="button" className={previewFilter === 'changed' ? 'active' : ''} aria-pressed={previewFilter === 'changed'} onClick={() => setPreviewFilter('changed')}>{t('changedOnly')}</button>
-                <button type="button" className={previewFilter === 'issues' ? 'active' : ''} aria-pressed={previewFilter === 'issues'} onClick={() => setPreviewFilter('issues')}>{t('issuesOnly')}</button>
-              </div>
-            </div>
+            <div className="preview-tools"><select value={sortMode} onChange={(event) => setSortMode(event.target.value as RenameSortMode)} aria-label={t('sortBy')}><option value="path">{t('sortPath')}</option><option value="name">{t('sortName')}</option><option value="added">{t('sortAdded')}</option></select></div>
           </div>
           <div className="table-scroll task-table-scroll"><table className="preview-table rename-preview-table"><thead><tr><th>{t('before')}</th><th>{t('after')}</th><th>{t('status')}</th></tr></thead><tbody>
-            {visiblePreviews.length ? visiblePreviews.map((preview) => {
+            {previews.length ? previews.map((preview) => {
               const status = previewStatus(preview)
               return <tr key={preview.fileId} className={preview.error || preview.collision ? 'row-error' : ''}><td title={preview.inputPath}><span>{preview.before}</span>{preview.inputPath !== preview.before && <small className="preview-path">{preview.inputPath}</small>}</td><td className={status.className} title={preview.outputPath}>{preview.after}</td><td className={status.className}>{status.label}</td></tr>
-            }) : <tr><td colSpan={3}><div className="filtered-empty">{t('noFilteredItems')}</div></td></tr>}
+            }) : <tr><td colSpan={3}><div className="filtered-empty">{t('emptyPreview')}</div></td></tr>}
           </tbody></table></div>
         </section>
 
@@ -116,7 +103,7 @@ export function RenameWorkspace({ files, busy, onBack, onRun, t }: RenameWorkspa
             {rule.type === 'normalize' && <div className="inline-checks"><label><input type="checkbox" checked={rule.unicode} onChange={(event) => update(rule.id, { unicode: event.target.checked })} />{t('unicodeNfc')}</label><label><input type="checkbox" checked={rule.whitespace} onChange={(event) => update(rule.id, { whitespace: event.target.checked })} />{t('cleanWhitespace')}</label></div>}
             {rule.type === 'date' && <div className="field-grid"><label className="field"><span>{t('dateFormat')}</span><select value={rule.format} onChange={(event) => update(rule.id, { format: event.target.value as 'YYYY-MM-DD' | 'YYYYMMDD' })}><option>YYYY-MM-DD</option><option>YYYYMMDD</option></select></label><label className="field"><span>{t('value')}</span><select value={rule.position} onChange={(event) => update(rule.id, { position: event.target.value as 'prefix' | 'suffix' })}><option value="prefix">{t('beforeName')}</option><option value="suffix">{t('afterName')}</option></select></label></div>}
           </div>)}</div>
-          <div className="config-options"><label title={t('extensionLockedHint')}><input type="checkbox" checked={lockExtension} onChange={(event) => setLockExtension(event.target.checked)} />{t('lockExtension')}</label><label className="field"><span>{t('collisionHandling')}</span><select value={resolveCollisions ? 'auto' : 'block'} onChange={(event) => setResolveCollisions(event.target.value === 'auto')}><option value="auto">{t('collisionAuto')}</option><option value="block">{t('collisionBlock')}</option></select></label></div>
+          <div className="config-options"><label title={t('extensionLockedHint')}><input type="checkbox" checked={lockExtension} onChange={(event) => setLockExtension(event.target.checked)} />{t('lockExtension')}</label><label className="field"><span>{t('collisionHandling')}</span><select value={resolveCollisions ? 'auto' : 'block'} onChange={(event) => setResolveCollisions(event.target.value === 'auto')}><option value="auto">{t('collisionAutoParen')}</option><option value="block">{t('collisionBlock')}</option></select></label></div>
           {extensionChangeCount > 0 && <p className="field-warning">{t('extensionChangeWarning', { count: extensionChangeCount })}</p>}
           <div className="preset-row"><button type="button" className="btn ghost" onClick={savePreset}><Save size={15} />{t('savePreset')}</button><button type="button" className="btn ghost" onClick={loadPreset}><Upload size={15} />{t('loadPreset')}</button></div>
           {presetMessage && <p className="field-hint preset-message" role="status">{presetMessage}</p>}

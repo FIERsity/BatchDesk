@@ -30,7 +30,7 @@ describe('rename engine', () => {
   it('resolves output collisions without overwriting', () => {
     const files = createInputFiles([new File(['a'], 'A.txt'), new File(['b'], 'B.txt'), new File(['c'], 'C.txt')])
     const preview = buildRenamePreview(files, [{ id: '1', type: 'replace', enabled: true, find: 'A|B|C', replacement: 'Same', regex: true, caseSensitive: false }])
-    expect(preview.map((item) => item.after)).toEqual(['Same.txt', 'Same-2.txt', 'Same-3.txt'])
+    expect(preview.map((item) => item.after)).toEqual(['Same.txt', 'Same(2).txt', 'Same(3).txt'])
     expect(preview[1].collisionResolved).toBe(true)
   })
 

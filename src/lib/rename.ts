@@ -79,7 +79,7 @@ function escapeRegExp(value: string): string {
 
 function addCollisionSuffix(name: string, number: number): string {
   const { stem, extension } = splitFileName(name)
-  return `${stem}-${number}${extension}`
+  return `${stem}(${number})${extension}`
 }
 
 export function buildRenamePreview(files: InputFile[], rules: RenameRule[], lockExtension = true, resolveCollisions = true, sortMode: RenameSortMode = 'path'): RenamePreview[] {

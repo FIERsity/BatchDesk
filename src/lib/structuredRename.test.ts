@@ -8,7 +8,7 @@ function makeFiles(names: string[]): InputFile[] {
 }
 
 function config(columns: RenameColumn[] = [], overrides: Partial<StructuredRenameConfig> = {}): StructuredRenameConfig {
-  return { columns, sortMode: 'path', resolveCollisions: true, ...overrides }
+  return { columns, sortMode: 'path', ...overrides }
 }
 
 describe('structured rename engine', () => {
@@ -39,6 +39,7 @@ describe('structured rename engine', () => {
 
   it('supports importing or editing an original filename in a manual field', () => {
     const manual = createRenameColumn('manual')
+    expect(manual.label).toBe('手动输入（可导入原始文件名）')
     const files = makeFiles(['第一份.txt', '第二份.txt'])
     const preview = buildStructuredRenamePreview(files, config([manual]), {
       [files[0].id]: { [manual.id]: '第一份-修订' },
@@ -47,20 +48,29 @@ describe('structured rename engine', () => {
     expect(preview.map((item) => item.after)).toEqual(['第一份-修订.txt', '第二份-修订.txt'])
   })
 
-  it('supports non-Arabic sequence formats', () => {
+  it('supports Arabic and lower Chinese sequence formats', () => {
     expect(formatStructuredSequence(12, 'chinese-lower')).toBe('十二')
-    expect(formatStructuredSequence(12, 'chinese-upper')).toBe('壹拾贰')
-    expect(formatStructuredSequence(4, 'roman')).toBe('IV')
-    expect(formatStructuredSequence(27, 'alpha-upper')).toBe('AA')
-    expect(formatStructuredSequence(27, 'alpha-lower')).toBe('aa')
+    expect(formatStructuredSequence(12, 'arabic')).toBe('12')
+    expect(formatStructuredSequence(0, 'chinese-lower')).toBe('〇')
   })
 
-  it('resolves three identical outputs as base, -2 and -3', () => {
+  it('resolves three identical outputs as base, (2) and (3)', () => {
     const title = createRenameColumn('manual')
     const files = makeFiles(['a.txt', 'b.txt', 'c.txt'])
     const overrides = Object.fromEntries(files.map((file) => [file.id, { [title.id]: 'same' }]))
     const preview = buildStructuredRenamePreview(files, config([title]), overrides)
-    expect(preview.map((item) => item.after)).toEqual(['same.txt', 'same-2.txt', 'same-3.txt'])
+    expect(preview.map((item) => item.after)).toEqual(['same.txt', 'same(2).txt', 'same(3).txt'])
+  })
+
+  it('uses fixed text as a whole column and ignores row overrides', () => {
+    const separator = createRenameColumn('literal')
+    separator.value = '-'
+    const files = makeFiles(['a.txt', 'b.txt'])
+    const preview = buildStructuredRenamePreview(files, config([separator]), {
+      [files[0].id]: { [separator.id]: '/' },
+    })
+    expect(preview.map((item) => item.cells[separator.id])).toEqual(['-', '-'])
+    expect(preview.map((item) => item.after)).toEqual(['-.txt', '-(2).txt'])
   })
 
   it('keeps sequence numbering tied to the selected sort order', () => {

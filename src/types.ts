@@ -4,7 +4,7 @@ export type Severity = 'info' | 'warning' | 'error'
 export type ProcessorId = 'rename' | 'docx-replace' | 'xlsx-replace'
 export type RenameSortMode = 'path' | 'name' | 'added'
 export type StructuredColumnKind = 'literal' | 'sequence' | 'manual'
-export type StructuredSequenceFormat = 'arabic' | 'chinese-lower' | 'chinese-upper' | 'roman' | 'alpha-upper' | 'alpha-lower'
+export type StructuredSequenceFormat = 'arabic' | 'chinese-lower'
 
 export interface RenameColumn {
   id: string
@@ -18,7 +18,6 @@ export interface RenameColumn {
 export interface StructuredRenameConfig {
   columns: RenameColumn[]
   sortMode: RenameSortMode
-  resolveCollisions: boolean
 }
 
 export interface AuditIssue {
