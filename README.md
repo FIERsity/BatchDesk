@@ -1,5 +1,7 @@
 # BatchDesk
 
+<p><img src="public/favicon.svg" alt="BatchDesk logo" width="72" /></p>
+
 [![Checks](https://github.com/FIERsity/BatchDesk/actions/workflows/checks.yml/badge.svg)](https://github.com/FIERsity/BatchDesk/actions/workflows/checks.yml)
 [![Deploy Pages](https://github.com/FIERsity/BatchDesk/actions/workflows/pages.yml/badge.svg)](https://github.com/FIERsity/BatchDesk/actions/workflows/pages.yml)
 

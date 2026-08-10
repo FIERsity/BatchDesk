@@ -1,7 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="116" fill="#F5F8FD"/>
-  <path d="M120 108h139c73 0 117 30 117 81 0 29-14 51-41 65-18 10-41 14-68 14H120V108Z" fill="#24344D"/>
-  <path d="M120 244h147c27 0 50 4 68 14 27 14 41 36 41 65 0 51-44 81-117 81H120V244Z" fill="#2563EB"/>
-  <path d="M180 164h81c28 0 46 9 46 26s-18 26-46 26h-81v-52Z" fill="#F5F8FD"/>
-  <path d="M180 296h87c28 0 46 9 46 26s-18 26-46 26h-87v-52Z" fill="#F5F8FD"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-labelledby="title desc">
+  <title id="title">BatchDesk</title>
+  <desc id="desc">A graphite and gray arrangement mark for organizing files in batches.</desc>
+  <path d="M28 58V28h48M28 166v26h164v-26" fill="none" stroke="#1F2933" stroke-linecap="square" stroke-width="14"/>
+  <g fill="#6B7280">
+    <rect x="34" y="70" width="38" height="22"/><rect x="34" y="100" width="38" height="22"/><rect x="34" y="130" width="38" height="22"/>
+    <rect x="150" y="70" width="38" height="22"/><rect x="150" y="100" width="38" height="22"/><rect x="150" y="130" width="38" height="22"/>
+  </g>
+  <g fill="#1F2933">
+    <rect x="92" y="70" width="38" height="22"/><rect x="92" y="100" width="38" height="22"/><rect x="92" y="130" width="38" height="22"/>
+  </g>
 </svg>
