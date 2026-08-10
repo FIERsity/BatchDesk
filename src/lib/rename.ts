@@ -105,9 +105,10 @@ export function buildRenamePreview(files: InputFile[], rules: RenameRule[], lock
     let collision = occupied.has(normalizedPathKey(outputPath))
     let collisionResolved = false
     if (collision && resolveCollisions) {
+      const baseAfter = after
       let suffix = 2
       do {
-        after = addCollisionSuffix(after, suffix++)
+        after = addCollisionSuffix(baseAfter, suffix++)
         outputPath = sanitizeOutputPath(file.directory ? `${file.directory}/${after}` : after)
       } while (occupied.has(normalizedPathKey(outputPath)))
       collision = false

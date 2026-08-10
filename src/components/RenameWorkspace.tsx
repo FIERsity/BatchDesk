@@ -2,6 +2,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, CirclePlus, Info, Play, Save, Trash2, Up
 import { useMemo, useState } from 'react'
 import { buildRenamePreview, validateRenameRule } from '../lib/rename'
 import type { InputFile, RenamePreview, RenameRule, RenameSortMode } from '../types'
+import { StructuredRenameBuilder } from './StructuredRenameBuilder'
 
 interface RenameWorkspaceProps {
   files: InputFile[]
@@ -25,6 +26,7 @@ function newRule(type: RenameRule['type']): RenameRule {
 }
 
 export function RenameWorkspace({ files, busy, onBack, onRun, t }: RenameWorkspaceProps) {
+  const [mode, setMode] = useState<'structured' | 'rules'>('structured')
   const [rules, setRules] = useState<RenameRule[]>([newRule('replace')])
   const [ruleType, setRuleType] = useState<RenameRule['type']>('replace')
   const [lockExtension, setLockExtension] = useState(true)
@@ -77,7 +79,8 @@ export function RenameWorkspace({ files, busy, onBack, onRun, t }: RenameWorkspa
   return (
     <main className="workspace task-workspace">
       <div className="task-heading"><button type="button" className="icon-btn" onClick={onBack} title={t('backInbox')} aria-label={t('backInbox')}><ArrowLeft size={18} /></button><div><span>{t('inbox')} /</span><h1>{t('rename')}</h1></div><div className="heading-meta">{t('selectedCount', { count: files.length })}</div></div>
-      <div className="task-layout">
+      <div className="rename-mode-tabs segmented" role="tablist" aria-label={t('renameMode')}><button type="button" role="tab" aria-selected={mode === 'structured'} className={mode === 'structured' ? 'active' : ''} onClick={() => setMode('structured')}>{t('structuredMode')}</button><button type="button" role="tab" aria-selected={mode === 'rules'} className={mode === 'rules' ? 'active' : ''} onClick={() => setMode('rules')}>{t('rulesMode')}</button></div>
+      {mode === 'structured' ? <StructuredRenameBuilder files={files} busy={busy} onRun={(previews) => onRun(previews, [])} t={t} /> : <div className="task-layout">
         <section className="preview-pane">
           <div className="section-heading preview-heading">
             <div><h2>{t('preview')}</h2><p>{t('renameSummary', { changed: changedCount, total: previews.length, issues: issueCount })}</p></div>
@@ -120,7 +123,7 @@ export function RenameWorkspace({ files, busy, onBack, onRun, t }: RenameWorkspa
           {!changedCount && !invalid && <p className="field-hint">{t('noChanges')}</p>}
           <button type="button" className="btn primary wide" disabled={!canRun} onClick={() => onRun(previews, rules)}><Play size={16} />{t('run')}</button>
         </aside>
-      </div>
+      </div>}
     </main>
   )
 }

@@ -3,6 +3,42 @@ export type FileKind = 'docx' | 'xlsx' | 'legacy' | 'other'
 export type Severity = 'info' | 'warning' | 'error'
 export type ProcessorId = 'rename' | 'docx-replace' | 'xlsx-replace'
 export type RenameSortMode = 'path' | 'name' | 'added'
+export type StructuredColumnKind = 'literal' | 'original' | 'cleaned' | 'sequence' | 'date' | 'manual' | 'extension'
+export type StructuredSequenceFormat = 'arabic' | 'chinese-lower' | 'chinese-upper' | 'roman' | 'alpha-upper' | 'alpha-lower'
+export type StructuredDateSource = 'today' | 'modified'
+export type StructuredDateFormat = 'YYYY-MM-DD' | 'YYYYMMDD' | 'YYYY年MM月DD日'
+
+export interface StructuredCleaningOptions {
+  trim: boolean
+  collapseWhitespace: boolean
+  normalizeUnicode: boolean
+  unifySeparators: boolean
+  separator: '-' | '_' | ' '
+  removeCopySuffix: boolean
+  case: 'keep' | 'lower' | 'upper' | 'title'
+}
+
+export interface RenameColumn {
+  id: string
+  kind: StructuredColumnKind
+  label: string
+  enabled: boolean
+  value: string
+  sequenceFormat: StructuredSequenceFormat
+  sequenceStart: number
+  sequenceStep: number
+  sequencePad: number
+  dateSource: StructuredDateSource
+  dateFormat: StructuredDateFormat
+  cleaning: StructuredCleaningOptions
+}
+
+export interface StructuredRenameConfig {
+  columns: RenameColumn[]
+  sortMode: RenameSortMode
+  lockExtension: boolean
+  resolveCollisions: boolean
+}
 
 export interface AuditIssue {
   code: string
@@ -42,6 +78,10 @@ export interface RenamePreview {
   collisionResolved: boolean
   extensionChanged: boolean
   error?: string
+}
+
+export interface StructuredRenamePreview extends RenamePreview {
+  cells: Record<string, string>
 }
 
 export type MatchMode = 'exact' | 'flexible-whitespace'
