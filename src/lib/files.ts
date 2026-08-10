@@ -6,11 +6,12 @@ const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i
 export function splitFileName(name: string): { stem: string; extension: string } {
   const index = name.lastIndexOf('.')
   if (index <= 0) return { stem: name, extension: '' }
-  return { stem: name.slice(0, index), extension: name.slice(index).toLowerCase() }
+  return { stem: name.slice(0, index), extension: name.slice(index) }
 }
 
 export function classifyFile(name: string): FileKind {
-  const { extension } = splitFileName(name)
+  const { extension: rawExtension } = splitFileName(name)
+  const extension = rawExtension.toLowerCase()
   if (extension === '.docx') return 'docx'
   if (extension === '.xlsx') return 'xlsx'
   if (['.doc', '.xls', '.xlsm'].includes(extension)) return 'legacy'

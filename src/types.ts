@@ -2,6 +2,7 @@ export type Language = 'zh' | 'en'
 export type FileKind = 'docx' | 'xlsx' | 'legacy' | 'other'
 export type Severity = 'info' | 'warning' | 'error'
 export type ProcessorId = 'rename' | 'docx-replace' | 'xlsx-replace'
+export type RenameSortMode = 'path' | 'name' | 'added'
 
 export interface AuditIssue {
   code: string
@@ -25,18 +26,21 @@ export interface InputFile {
 export type RenameRule =
   | { id: string; type: 'replace'; enabled: boolean; find: string; replacement: string; regex: boolean; caseSensitive: boolean }
   | { id: string; type: 'prefix' | 'suffix'; enabled: boolean; value: string }
-  | { id: string; type: 'sequence'; enabled: boolean; start: number; pad: number; separator: string }
+  | { id: string; type: 'sequence'; enabled: boolean; start: number; step: number; pad: number; separator: string; position: 'prefix' | 'suffix' }
   | { id: string; type: 'case'; enabled: boolean; mode: 'lower' | 'upper' | 'title' }
   | { id: string; type: 'normalize'; enabled: boolean; unicode: boolean; whitespace: boolean }
   | { id: string; type: 'date'; enabled: boolean; format: 'YYYY-MM-DD' | 'YYYYMMDD'; position: 'prefix' | 'suffix' }
 
 export interface RenamePreview {
   fileId: string
+  inputPath: string
   before: string
   after: string
   outputPath: string
   changed: boolean
   collision: boolean
+  collisionResolved: boolean
+  extensionChanged: boolean
   error?: string
 }
 
